@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Converter - Make PDFs Readable</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #764ba2;
+            background: #f0f1ff;
+            transform: scale(1.02);
+        }
+
+        .upload-area.processing {
+            border-color: #ffc107;
+            background: #fffbf0;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: #999;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .options {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .option-group {
+            margin-bottom: 15px;
+        }
+
+        .option-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .option-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .option-group select,
+        .option-group input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .option-group select:focus,
+        .option-group input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: normal;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+            border-left: 4px solid #1976d2;
+        }
+
+        .status.success {
+            background: #e8f5e9;
+            color: #388e3c;
+            border-left: 4px solid #388e3c;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .file-info {
+            margin-top: 15px;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            display: none;
+        }
+
+        .file-info-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .file-info-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .file-info-item strong {
+            color: #333;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            display: none;
+        }
+
+        .download-btn:hover {
+            box-shadow: 0 10px 20px rgba(17, 153, 142, 0.4);
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 PDF Converter</h1>
+            <p>Convert scanned PDFs to searchable PDFs with selectable text</p>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">Drop your PDF here or click to browse</div>
+            <div class="upload-hint">Supports scanned and digital PDFs (max 50MB)</div>
+            <input type="file" id="fileInput" accept=".pdf" />
+        </div>
+
+        <div class="file-info" id="fileInfo">
+            <div class="file-info-item">
+                <span>File:</span>
+                <strong id="fileName"></strong>
+            </div>
+            <div class="file-info-item">
+                <span>Size:</span>
+                <strong id="fileSize"></strong>
+            </div>
+        </div>
+
+        <div class="options">
+            <div class="option-group">
+                <label for="format">Output Format:</label>
+                <select id="format">
+                    <option value="pdf" selected>Searchable PDF (default)</option>
+                    <option value="txt">Text File (.txt)</option>
+                    <option value="docx">Word Document (.docx)</option>
+                </select>
+            </div>
+
+            <div class="option-group">
+                <label for="dpi">OCR Quality (DPI):</label>
+                <select id="dpi">
+                    <option value="200">Fast (200 DPI)</option>
+                    <option value="300">Standard (300 DPI)</option>
+                    <option value="350" selected>Recommended (350 DPI)</option>
+                    <option value="400">High (400 DPI)</option>
+                    <option value="500">Best (500 DPI)</option>
+                </select>
+            </div>
+
+            <div class="option-group">
+                <label for="lang">Document Language:</label>
+                <select id="lang">
+                    <option value="eng" selected>English</option>
+                    <option value="fra">French</option>
+                    <option value="deu">German</option>
+                    <option value="spa">Spanish</option>
+                    <option value="ita">Italian</option>
+                    <option value="por">Portuguese</option>
+                    <option value="rus">Russian</option>
+                    <option value="chi_sim">Chinese (Simplified)</option>
+                    <option value="jpn">Japanese</option>
+                    <option value="kor">Korean</option>
+                </select>
+            </div>
+
+            <div class="option-group checkbox-group">
+                <input type="checkbox" id="forceOcr" />
+                <label for="forceOcr">Force OCR (even if PDF has text)</label>
+            </div>
+            <div class="option-group checkbox-group">
+                <input type="checkbox" id="preserveColor" checked />
+                <label for="preserveColor">Preserve color in PDF output</label>
+            </div>
+        </div>
+
+        <button class="btn" id="convertBtn" disabled>Select a PDF to Convert</button>
+        <button class="btn download-btn" id="downloadBtn">Download Converted File</button>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill"></div>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const convertBtn = document.getElementById('convertBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const status = document.getElementById('status');
+        const progressBar = document.getElementById('progressBar');
+        
+        let selectedFile = null;
+        let downloadUrl = null;
+
+        // Upload area click
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                handleFile(files[0]);
+            } else {
+                showStatus('Please drop a PDF file', 'error');
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // Handle file selection
+        function handleFile(file) {
+            selectedFile = file;
+            
+            // Show file info
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.style.display = 'block';
+            
+            // Enable convert button
+            convertBtn.disabled = false;
+            convertBtn.textContent = 'Convert PDF';
+            
+            // Hide download button
+            downloadBtn.style.display = 'none';
+            
+            // Hide status
+            status.style.display = 'none';
+        }
+
+        // Convert button
+        convertBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('format', document.getElementById('format').value);
+            formData.append('dpi', document.getElementById('dpi').value);
+            formData.append('lang', document.getElementById('lang').value);
+            formData.append('force_ocr', document.getElementById('forceOcr').checked);
+            formData.append('preserve_color', document.getElementById('preserveColor').checked);
+            
+            // Update UI
+            convertBtn.disabled = true;
+            convertBtn.innerHTML = '<span class="spinner"></span>Converting...';
+            uploadArea.classList.add('processing');
+            progressBar.style.display = 'block';
+            showStatus('Processing your PDF... This may take a minute.', 'info');
+            
+            try {
+                const response = await fetch('/convert', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    downloadUrl = result.download_url;
+                    showStatus('✓ Conversion successful! Your file is ready.', 'success');
+                    downloadBtn.style.display = 'block';
+                    convertBtn.style.display = 'none';
+                } else {
+                    showStatus('Error: ' + (result.error || 'Conversion failed'), 'error');
+                    convertBtn.disabled = false;
+                    convertBtn.textContent = 'Try Again';
+                }
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+                convertBtn.disabled = false;
+                convertBtn.textContent = 'Try Again';
+            } finally {
+                uploadArea.classList.remove('processing');
+                progressBar.style.display = 'none';
+            }
+        });
+
+        // Download button
+        downloadBtn.addEventListener('click', () => {
+            if (downloadUrl) {
+                window.location.href = downloadUrl;
+            }
+        });
+
+        // Utility functions
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function showStatus(message, type) {
+            status.textContent = message;
+            status.className = 'status ' + type;
+            status.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
