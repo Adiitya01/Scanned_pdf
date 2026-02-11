@@ -8,6 +8,7 @@ from flask import request, send_file, jsonify
 from werkzeug.utils import secure_filename
 
 from .pdf_converter import PDFConverter
+from .docx_html import docx_to_html, html_to_docx
 
 
 def init_api(app, upload_folder: Path, output_folder: Path):
@@ -81,11 +82,14 @@ def init_api(app, upload_folder: Path, output_folder: Path):
 
             input_path.unlink()
 
-            return jsonify({
+            payload = {
                 'success': True,
                 'download_url': f'/api/download/{output_path.name}',
                 'filename': output_filename
-            })
+            }
+            if output_format == 'docx':
+                payload['edit_url'] = f'/editor?file={output_path.name}'
+            return jsonify(payload)
 
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
@@ -107,11 +111,60 @@ def init_api(app, upload_folder: Path, output_folder: Path):
             download_name=download_name
         )
 
+    def _safe_docx_filename(name: str) -> bool:
+        """Ensure filename is a safe basename and ends with .docx"""
+        if '..' in name or '/' in name or '\\' in name:
+            return False
+        return name.strip().lower().endswith('.docx')
+
+    @app.route('/api/document/<path:filename>/html', methods=['GET'])
+    def document_to_html(filename):
+        """Get DOCX file as HTML for the editor. No alignment changes."""
+        if not _safe_docx_filename(filename):
+            return jsonify({'error': 'Invalid filename'}), 400
+        file_path = output_folder / filename
+        if not file_path.exists():
+            return jsonify({'error': 'File not found'}), 404
+        try:
+            html = docx_to_html(file_path)
+            return jsonify({'success': True, 'html': html})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/api/save-docx', methods=['POST'])
+    def save_docx():
+        """Save editor HTML as DOCX. Returns download URL. No alignment set."""
+        try:
+            data = request.get_json(force=True, silent=True) or {}
+            html = data.get('html') or ''
+            filename = data.get('filename') or 'edited.docx'
+            if not isinstance(html, str):
+                return jsonify({'success': False, 'error': 'Invalid html'}), 400
+            # Sanitize filename and strip leading timestamp segments for a clean name
+            safe = secure_filename(filename)
+            stem = Path(safe).stem if safe else 'edited'
+            parts = stem.split('_')
+            while parts and parts[0].isdigit():
+                parts.pop(0)
+            base = '_'.join(parts) if parts else 'edited'
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            output_filename = f"{timestamp}_{base}.docx"
+            output_path = output_folder / output_filename
+            html_to_docx(html, output_path)
+            download_name = f"{base}.docx"
+            return jsonify({
+                'success': True,
+                'download_url': f'/api/download/{output_filename}',
+                'filename': download_name
+            })
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
     @app.route('/api/health')
     def health_check():
         """Check API and dependencies status"""
         deps = {}
-        for dep in ['pdfplumber', 'pytesseract', 'pdf2image', 'docx', 'pypdf']:
+        for dep in ['pdfplumber', 'pytesseract', 'pdf2image', 'docx', 'pypdf', 'mammoth', 'bs4']:
             try:
                 __import__(dep)
                 deps[dep] = True

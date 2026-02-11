@@ -35,6 +35,12 @@ def index():
     return send_from_directory(FRONTEND_DIR, 'index.html')
 
 
+@app.route('/editor')
+def editor():
+    """Serve editor page (for Proceed to edit after DOCX conversion)"""
+    return send_from_directory(FRONTEND_DIR, 'editor.html')
+
+
 @app.route('/css/<path:filename>')
 def frontend_css(filename):
     """Serve CSS files"""

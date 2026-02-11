@@ -22,7 +22,6 @@ try:
     from PIL import Image, ImageEnhance
     import docx
     from docx.shared import Pt, RGBColor
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
 except ImportError as e:
     print(f"Missing required package: {e}")
     print("Install with: pip install pypdf pdfplumber pytesseract pdf2image pillow python-docx")
@@ -189,7 +188,7 @@ class PDFConverter:
         return str(output_path)
 
     def save_as_docx(self, text: str, output_path: Optional[str] = None) -> str:
-        """Save extracted text as DOCX file"""
+        """Save extracted text as DOCX file. No alignment is set so you can edit freely."""
         if output_path is None:
             output_path = self.input_pdf.with_suffix('.docx')
         output_path = Path(output_path)
@@ -198,7 +197,7 @@ class PDFConverter:
         title_run = title.add_run(f"Extracted from: {self.input_pdf.name}")
         title_run.bold = True
         title_run.font.size = Pt(14)
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # No alignment set — leave default so you can edit the document freely
         doc.add_paragraph()
 
         page_pattern = re.compile(r'--- Page (\d+) ---\n\n', re.IGNORECASE)

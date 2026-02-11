@@ -20,12 +20,14 @@ const elements = {
     preserveColor: document.getElementById('preserveColor'),
     btnConvert: document.getElementById('btnConvert'),
     btnDownload: document.getElementById('btnDownload'),
+    btnEdit: document.getElementById('btnEdit'),
     status: document.getElementById('status'),
     progress: document.getElementById('progress'),
 };
 
 let selectedFile = null;
 let downloadUrl = null;
+let editUrl = null;
 
 // Upload zone click
 elements.uploadZone.addEventListener('click', () => elements.fileInput.click());
@@ -74,6 +76,15 @@ elements.btnDownload.addEventListener('click', () => {
     }
 });
 
+// Proceed to edit (opens editor for DOCX)
+elements.btnEdit.addEventListener('click', (e) => {
+    if (editUrl) {
+        window.location.href = editUrl;
+    } else {
+        e.preventDefault();
+    }
+});
+
 function handleFile(file) {
     selectedFile = file;
     elements.fileName.textContent = file.name;
@@ -84,18 +95,22 @@ function handleFile(file) {
     elements.btnConvert.disabled = false;
     elements.btnConvert.textContent = 'Convert';
     elements.btnDownload.hidden = true;
+    elements.btnEdit.hidden = true;
+    editUrl = null;
     hideStatus();
 }
 
 function clearFile() {
     selectedFile = null;
     downloadUrl = null;
+    editUrl = null;
     elements.fileInput.value = '';
     elements.uploadZone.style.display = 'block';
     elements.filePreview.hidden = true;
     elements.optionsSection.hidden = true;
     elements.btnConvert.disabled = true;
     elements.btnDownload.hidden = true;
+    elements.btnEdit.hidden = true;
     hideStatus();
 }
 
@@ -155,8 +170,15 @@ async function convertFile() {
 
         if (response.ok && result.success) {
             downloadUrl = result.download_url;
-            showStatus('Conversion complete! Click Download.', 'success');
+            editUrl = result.edit_url || null;
+            showStatus('Conversion complete! Click Download' + (editUrl ? ' or Proceed to edit.' : '.'), 'success');
             elements.btnDownload.hidden = false;
+            if (editUrl) {
+                elements.btnEdit.href = editUrl;
+                elements.btnEdit.hidden = false;
+            } else {
+                elements.btnEdit.hidden = true;
+            }
             elements.btnConvert.textContent = 'Convert another';
         } else {
             showStatus(result.error || 'Conversion failed', 'error');
