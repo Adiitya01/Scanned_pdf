@@ -30,11 +30,7 @@ sudo apt-get install -y \
     python3-pip
 ```
 
-#### macOS:
-```bash
-brew install tesseract
-brew install poppler
-```
+
 
 #### Windows:
 - Download and install Tesseract from: https://github.com/UB-Mannheim/tesseract/wiki
